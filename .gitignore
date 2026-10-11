@@ -1,1 +1,2 @@
-/BirdsongAlarm
+# Root-level ignores only. App-specific ignores live in BirdsongAlarm/BirdsongAlarm/.gitignore
+BirdsongAlarm.zip

@@ -1,0 +1,154 @@
+{
+  "birds": [
+    {
+      "id": "01_song_sparrow",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "02_tufted_titmouse",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "03_american_robin",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "04_northern_cardinal",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "05_black_capped_chickadee",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "06_carolina_wren",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "07_wood_thrush",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "08_eastern_bluebird",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "09_american_goldfinch",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "10_baltimore_oriole",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "11_eastern_meadowlark",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "12_red_winged_blackbird",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "13_mourning_dove",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "14_white_throated_sparrow",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "15_indigo_bunting",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "16_rose_breasted_grosbeak",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "17_eastern_towhee",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "18_common_yellowthroat",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "19_hermit_thrush",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "20_eastern_wood_pewee",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "21_american_crow",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "22_blue_jay",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "23_barn_swallow",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "24_gray_catbird",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "25_house_wren",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "26_eastern_phoebe",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    },
+    {
+      "id": "27_downy_woodpecker",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "28_red_bellied_woodpecker",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "29_chipping_sparrow",
+      "audio": "audio.mp3",
+      "image": "image.jpg"
+    },
+    {
+      "id": "30_orchard_oriole",
+      "audio": "audio.wav",
+      "image": "image.jpg"
+    }
+  ]
+}

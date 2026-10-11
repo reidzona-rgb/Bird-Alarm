@@ -1,0 +1,79 @@
+# Builds BirdsongAlarm.ipa on a free cloud Mac. No Mac of your own needed.
+# Runs on every push, or by hand from the Actions tab (Run workflow).
+name: Build iPhone app
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: BirdsongAlarm/BirdsongAlarm
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install build tools
+        run: brew install xcodegen ffmpeg
+
+      # Optional: add a repository secret named XC_API_KEY for rated xeno-canto
+      # recordings. Without it, recordings come from iNaturalist.
+      - name: Download bird recordings and photos
+        env:
+          XC_API_KEY: ${{ secrets.XC_API_KEY }}
+        run: python3 tools/fetch_assets.py
+
+      - name: Cut alarm clips
+        run: python3 tools/make_clips.py
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Compile (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project BirdsongAlarm.xcodeproj \
+            -scheme BirdsongAlarm \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log
+
+      - name: Package the .ipa
+        run: |
+          APP=build/Build/Products/Release-iphoneos/BirdsongAlarm.app
+          echo "Alarm clips in the app: $(ls "$APP" | grep -c '^birdsong_.*\.caf$' || true)"
+          echo "Bird folders in the app: $(ls "$APP/assets/birds" | grep -c '^[0-9]' || true)"
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry BirdsongAlarm.ipa Payload
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: BirdsongAlarm-ipa
+          path: |
+            BirdsongAlarm/BirdsongAlarm/BirdsongAlarm.ipa
+            BirdsongAlarm/BirdsongAlarm/assets/CREDITS.md
+          retention-days: 30
+
+      - name: Upload the build log if something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: BirdsongAlarm/BirdsongAlarm/build.log
+          if-no-files-found: ignore

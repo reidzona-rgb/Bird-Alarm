@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Birdsong">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Birdsong Alarm</title>
+<style>
+  :root { --yellow: #ffd60a; --card: #212121; --muted: #a0a0a0; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: #000; color: #fff;
+    font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  .view { display: none; min-height: 100%; }
+  .view.on { display: block; }
+
+  /* Home */
+  #home { padding: calc(20px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom)); max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 34px; margin: 0 0 18px; }
+  .time-row { background: var(--card); border-radius: 16px; padding: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .time-row label { font-size: 17px; }
+  input[type=time] { font: inherit; font-size: 30px; font-weight: 700; color: #fff; background: #000; border: 2px solid #444; border-radius: 12px; padding: 8px 12px; color-scheme: dark; }
+  .primary { display: block; width: 100%; height: 64px; margin-top: 14px; border-radius: 18px; background: var(--yellow); color: #000; font-size: 20px; font-weight: 800; }
+  .secondary { display: block; width: 100%; height: 52px; margin-top: 10px; border-radius: 16px; background: var(--card); color: var(--yellow); font-size: 17px; font-weight: 700; }
+  .primary:disabled, .secondary:disabled { opacity: .5; }
+  #status { margin: 14px 2px 0; color: var(--muted); font-size: 15px; min-height: 20px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-top: 18px; }
+  .card h2 { font-size: 17px; margin: 0 0 10px; }
+  .card ul { margin: 0; padding: 0; list-style: none; }
+  .card li { padding: 6px 0 6px 26px; position: relative; font-size: 15px; line-height: 1.4; }
+  .card li::before { content: ""; position: absolute; left: 4px; top: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); }
+  .card li.warn::before { background: #ff6b5e; }
+  .deck li { display: flex; justify-content: space-between; gap: 10px; padding-left: 0; border-top: 1px solid #333; }
+  .deck li:first-child { border-top: 0; }
+  .deck li::before { display: none; }
+  .deck em { color: var(--muted); font-size: 13px; display: block; }
+  .tag { font-size: 12px; color: var(--muted); white-space: nowrap; align-self: center; }
+  .tag.ok { color: var(--yellow); }
+
+  /* Night screen */
+  #night { text-align: center; padding: 0 24px; }
+  #night.on { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; }
+  #nightClock { font-size: 84px; font-weight: 200; color: #6b6b6b; letter-spacing: 1px; }
+  #nightInfo { color: #5a5a5a; font-size: 16px; margin-top: 6px; }
+  #nightBack { margin-top: 44px; background: none; color: #5a5a5a; border: 1px solid #333; border-radius: 14px; padding: 12px 22px; font-size: 15px; }
+
+  /* Waking screen */
+  #wake.on { display: flex; flex-direction: column; height: 100%; }
+  #art { flex: 0 0 36%; background: linear-gradient(0deg, #fa8c33, var(--yellow)); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
+  #art svg { width: 46%; max-width: 220px; }
+  #wakeBody { flex: 1 1 auto; overflow-y: auto; padding: 20px; }
+  #birdName { font-size: 40px; font-weight: 900; line-height: 1.05; margin: 0; }
+  #birdLatin { color: var(--yellow); font-style: italic; font-size: 19px; margin: 4px 0 0; }
+  #facts { margin-top: 16px; }
+  #facts li { font-size: 17px; }
+  #credits { color: #999; font-size: 11px; margin-top: 12px; white-space: pre-line; }
+  #soundNudge { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: #ff6b5e; color: #000; font-weight: 700; }
+  #wakeFoot { flex: 0 0 auto; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); background: #000; }
+  #dismiss { margin-top: 0; height: 68px; font-size: 22px; }
+</style>
+</head>
+<body>
+
+<!-- Setup state -->
+<section id="home" class="view on">
+  <h1>Birdsong</h1>
+  <div class="time-row">
+    <label for="time">Wake me at</label>
+    <input id="time" type="time" value="07:00">
+  </div>
+  <button id="setBtn" class="primary">Set Alarm</button>
+  <button id="cancelBtn" class="secondary" hidden>Turn Alarm Off</button>
+  <button id="testBtn" class="secondary">Test alarm in 10 seconds</button>
+  <p id="status">Loading the deck…</p>
+
+  <div class="card">
+    <h2>Before bed</h2>
+    <ul id="tips"></ul>
+  </div>
+
+  <div class="card deck">
+    <h2 id="deckTitle">Chorus Deck</h2>
+    <ul id="deck"></ul>
+  </div>
+</section>
+
+<!-- Armed: dim clock that stays on screen overnight -->
+<section id="night" class="view">
+  <div id="nightClock">--:--</div>
+  <div id="nightInfo"></div>
+  <button id="nightBack">Show controls</button>
+</section>
+
+<!-- Active Alarm Display -->
+<section id="wake" class="view">
+  <div id="art"></div>
+  <div id="wakeBody">
+    <h2 id="birdName"></h2>
+    <p id="birdLatin"></p>
+    <div class="card" style="margin-top:16px"><ul id="facts"></ul></div>
+    <div id="soundNudge">Tap anywhere to turn the sound on.</div>
+    <div id="credits"></div>
+  </div>
+  <div id="wakeFoot"><button id="dismiss" class="primary">Dismiss Alarm</button></div>
+</section>
+
+<script>
+"use strict";
+/* Birdsong Alarm, web edition.
+   Everything the alarm needs (audio, image, facts) is loaded into memory when
+   the alarm is set, so nothing is fetched at ring time. */
+
+const ROOT = "assets/birds/";
+const CACHE = "birdsong-v1";
+const LOOP_SECONDS = 45;            // each voice loops this much of its recording
+// Dawn chorus plan: the lead swells for a full minute, companions join later.
+const VOICES = [
+  { delay: 0,  from: 0.03, to: 0.85, fade: 60 },
+  { delay: 20, from: 0.0,  to: 0.45, fade: 40 },
+  { delay: 40, from: 0.0,  to: 0.35, fade: 20 },
+];
+const BIRD_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path fill="#000" d="M78 30c-4-6-12-8-18-4l-6 4c-14 2-26 12-32 26l-14 10 16-2c6 8 16 12 26 10l4 14h6l-3-16c10-5 16-16 16-28l9-6-4-8zM67 33a3 3 0 110 6 3 3 0 010-6z"/></svg>';
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  birds: [],
+  ctx: null,          // AudioContext, created on the first tap
+  keepAlive: null,    // silent loop that keeps the context running overnight
+  armed: null,        // { fire, lead, voices:[AudioBuffer], imageURL }
+  ringing: null,      // { sources: [] }
+  wakeLock: null,
+  job: 0,             // bumps whenever an arm is cancelled or replaced
+};
+
+/* ---------- Deck ---------- */
+
+async function loadDeck() {
+  const index = await (await fetch(ROOT + "index.json", { cache: "no-cache" })).json();
+  const birds = await Promise.all(index.birds.map(async (entry) => {
+    const meta = await (await fetch(ROOT + entry.id + "/metadata.json", { cache: "no-cache" })).json();
+    return {
+      id: entry.id,
+      name: meta.name,
+      latin: meta.scientific_name || "",
+      facts: meta.facts || [],
+      audio: entry.audio ? ROOT + entry.id + "/" + entry.audio : null,
+      image: entry.image ? ROOT + entry.id + "/" + entry.image : null,
+      audioCredit: meta.audio_credit || "",
+      imageCredit: meta.image_credit || "",
+    };
+  }));
+  state.birds = birds;
+  renderDeck();
+  saveOffline();
+}
+
+function renderDeck() {
+  const withAudio = state.birds.filter((b) => b.audio).length;
+  $("deckTitle").textContent = "Chorus Deck (" + state.birds.length + " birds, " + withAudio + " with recordings)";
+  $("deck").replaceChildren(...state.birds.map((b) => {
+    const li = document.createElement("li");
+    const left = document.createElement("span");
+    left.textContent = b.name;
+    const latin = document.createElement("em");
+    latin.textContent = b.latin;
+    left.append(latin);
+    const tag = document.createElement("span");
+    tag.className = "tag" + (b.audio ? " ok" : "");
+    tag.textContent = b.audio ? "recording" : "placeholder chirp";
+    li.append(left, tag);
+    return li;
+  }));
+}
+
+/* Copies the whole deck into the browser's offline cache (HTTPS or localhost only). */
+async function saveOffline() {
+  if (!window.isSecureContext || !("caches" in window)) return;
+  try {
+    const cache = await caches.open(CACHE);
+    const urls = [];
+    for (const b of state.birds) {
+      urls.push(ROOT + b.id + "/metadata.json");
+      if (b.audio) urls.push(b.audio);
+      if (b.image) urls.push(b.image);
+    }
+    await Promise.all(urls.map((u) => cache.add(u).catch(() => {})));
+  } catch (e) { /* offline cache is a bonus, not a requirement */ }
+}
+
+/* ---------- Audio ---------- */
+
+function ensureAudio() {
+  if (!state.ctx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    state.ctx = new Ctx();
+    // iOS 17+: play even when the Ring/Silent switch is on Silent.
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  }
+  if (state.ctx.state !== "running") state.ctx.resume().catch(() => {});
+  if (!state.keepAlive) {
+    const silence = state.ctx.createBuffer(1, state.ctx.sampleRate, state.ctx.sampleRate);
+    const src = state.ctx.createBufferSource();
+    src.buffer = silence;
+    src.loop = true;
+    src.connect(state.ctx.destination);
+    src.start();
+    state.keepAlive = src;
+  }
+}
+
+function decode(arrayBuffer) {
+  return new Promise((resolve, reject) => state.ctx.decodeAudioData(arrayBuffer, resolve, reject));
+}
+
+/* Mixes a decoded recording down to a short mono loop to keep memory small. */
+function toLoop(decoded) {
+  const rate = decoded.sampleRate;
+  const length = Math.min(decoded.length, Math.floor(rate * LOOP_SECONDS));
+  const out = state.ctx.createBuffer(1, length, rate);
+  const data = out.getChannelData(0);
+  for (let c = 0; c < decoded.numberOfChannels; c++) {
+    const ch = decoded.getChannelData(c);
+    for (let i = 0; i < length; i++) data[i] += ch[i] / decoded.numberOfChannels;
+  }
+  const edge = Math.min(Math.floor(rate * 0.25), Math.floor(length / 2));
+  for (let i = 0; i < edge; i++) {            // soften the loop seam
+    const g = i / edge;
+    data[i] *= g;
+    data[length - 1 - i] *= g;
+  }
+  return out;
+}
+
+/* Stand-in chirps for a deck slot that has no recording yet. */
+function synthLoop(seed) {
+  let s = (seed * 2654435761) >>> 0;
+  const rnd = () => { s = (s + 0x6D2B79F5) >>> 0; let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const rate = state.ctx.sampleRate;
+  const out = state.ctx.createBuffer(1, rate * 8, rate);
+  const data = out.getChannelData(0);
+  const base = 2200 + rnd() * 2400;
+  let t = 0.3;
+  while (t < 7.2) {
+    const notes = 2 + Math.floor(rnd() * 4);
+    for (let n = 0; n < notes && t < 7.4; n++) {
+      const dur = 0.07 + rnd() * 0.12;
+      const f0 = base * (0.8 + rnd() * 0.5), f1 = f0 * (0.7 + rnd() * 0.7);
+      const start = Math.floor(t * rate), count = Math.floor(dur * rate);
+      let phase = 0;
+      for (let i = 0; i < count; i++) {
+        const p = i / count;
+        phase += 2 * Math.PI * (f0 + (f1 - f0) * p) / rate;
+        data[start + i] += Math.sin(phase) * Math.sin(Math.PI * p) ** 2 * 0.3;
+      }
+      t += dur + 0.05;
+    }
+    t += 0.6 + rnd() * 1.2;
+  }
+  return out;
+}
+
+async function loopFor(bird) {
+  if (bird.audio) {
+    try {
+      const bytes = await (await fetch(bird.audio)).arrayBuffer();
+      return toLoop(await decode(bytes));
+    } catch (e) { /* fall through to the stand-in */ }
+  }
+  return synthLoop(state.birds.indexOf(bird) + 1);
+}
+
+/* ---------- Randomization engine ---------- */
+
+function pickBird() {
+  const last = localStorage.getItem("birdsong.last");
+  let pool = state.birds.filter((b) => b.audio);
+  if (!pool.length) pool = state.birds;
+  const fresh = pool.filter((b) => b.id !== last);       // never the same bird two mornings running
+  const from = fresh.length ? fresh : pool;
+  return from[Math.floor(Math.random() * from.length)];
+}
+
+function shuffled(list) {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ---------- Arming ---------- */
+
+function nextFire(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  if (d.getTime() <= Date.now() + 1000) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
+async function arm(fire, goToNight) {
+  if (!state.birds.length) return;
+  ensureAudio();
+  const job = ++state.job;
+  state.armed = null;
+  setStatus("Getting tomorrow's bird ready…");
+  $("setBtn").disabled = $("testBtn").disabled = true;
+
+  const lead = pickBird();
+  const companions = shuffled(state.birds.filter((b) => b.id !== lead.id && (b.audio || !lead.audio))).slice(0, 2);
+  const voices = [];
+  for (const bird of [lead, ...companions]) voices.push(await loopFor(bird));   // one at a time: lighter on memory
+  let imageURL = null;
+  if (lead.image) {
+    try { imageURL = URL.createObjectURL(await (await fetch(lead.image)).blob()); } catch (e) {}
+  }
+  $("setBtn").disabled = $("testBtn").disabled = false;
+  if (job !== state.job) return;                 // cancelled or replaced while loading
+
+  state.armed = { fire, lead, voices, imageURL };
+  requestWakeLock();
+  refreshHome();
+  if (goToNight) show("night");
+}
+
+function disarm() {
+  state.job++;
+  state.armed = null;
+  localStorage.removeItem("birdsong.enabled");
+  releaseWakeLock();
+  refreshHome();
+}
+
+/* ---------- Ringing ---------- */
+
+function ring() {
+  const { lead, voices, imageURL } = state.armed;
+  state.armed = null;
+
+  const art = $("art");
+  art.style.backgroundImage = imageURL ? 'url("' + imageURL + '")' : "";
+  art.innerHTML = imageURL ? "" : BIRD_SVG;
+  $("birdName").textContent = lead.name;
+  $("birdLatin").textContent = lead.latin;
+  $("facts").replaceChildren(...lead.facts.slice(0, 3).map((f) => {
+    const li = document.createElement("li");
+    li.textContent = f;
+    return li;
+  }));
+  $("credits").textContent = [lead.audioCredit && "Audio: " + lead.audioCredit,
+                              lead.imageCredit && "Photo: " + lead.imageCredit].filter(Boolean).join("\n");
+  show("wake");
+
+  const ctx = state.ctx;
+  ctx.resume().catch(() => {});
+  const t0 = ctx.currentTime + 0.1;
+  const sources = voices.map((buffer, i) => {
+    const plan = VOICES[i];
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(plan.from, t0 + plan.delay);
+    gain.gain.linearRampToValueAtTime(plan.to, t0 + plan.delay + plan.fade);
+    gain.connect(ctx.destination);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(gain);
+    src.start(t0 + plan.delay);
+    return src;
+  });
+  state.ringing = { sources, lead, imageURL };
+  localStorage.setItem("birdsong.last", lead.id);
+  setTimeout(checkSound, 800);
+}
+
+/* If the phone suspended audio overnight, one tap brings it back. */
+function checkSound() {
+  if (!state.ringing) return;
+  $("soundNudge").style.display = state.ctx.state === "running" ? "none" : "block";
+}
+
+function dismiss() {
+  if (!state.ringing) return;
+  for (const src of state.ringing.sources) { try { src.stop(); } catch (e) {} }
+  if (state.ringing.imageURL) URL.revokeObjectURL(state.ringing.imageURL);
+  state.ringing = null;
+  $("soundNudge").style.display = "none";
+  show("home");
+  // Draw a new bird for the next morning if the daily alarm is on.
+  if (localStorage.getItem("birdsong.enabled") === "1") {
+    arm(nextFire($("time").value), false);
+  } else {
+    releaseWakeLock();
+    refreshHome();
+  }
+}
+
+/* ---------- Screen wake lock ---------- */
+
+async function requestWakeLock() {
+  if (!("wakeLock" in navigator) || state.wakeLock) return;
+  try {
+    state.wakeLock = await navigator.wakeLock.request("screen");
+    state.wakeLock.addEventListener("release", () => { state.wakeLock = null; refreshTips(); });
+  } catch (e) { state.wakeLock = null; }
+  refreshTips();
+}
+
+function releaseWakeLock() {
+  if (state.wakeLock) state.wakeLock.release().catch(() => {});
+  state.wakeLock = null;
+}
+
+/* ---------- UI ---------- */
+
+function show(id) {
+  for (const v of document.querySelectorAll(".view")) v.classList.toggle("on", v.id === id);
+  window.scrollTo(0, 0);
+}
+
+function setStatus(text) { $("status").textContent = text; }
+
+function fmt(ms) {
+  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function refreshHome() {
+  const armed = state.armed;
+  $("cancelBtn").hidden = !armed;
+  $("setBtn").textContent = armed ? "Update Alarm" : "Set Alarm";
+  if (armed) {
+    const day = new Date(armed.fire).toLocaleDateString([], { weekday: "long" });
+    setStatus("Alarm set for " + day + " " + fmt(armed.fire) + ". The bird is a surprise. Keep this page open.");
+    $("nightInfo").textContent = "Alarm " + fmt(armed.fire);
+  } else if (state.birds.length) {
+    setStatus(localStorage.getItem("birdsong.enabled") === "1"
+      ? "Not armed. Tap Set Alarm again (the page was reloaded, and sound needs a tap)."
+      : "Alarm is off.");
+  }
+  refreshTips();
+}
+
+function refreshTips() {
+  const tips = [];
+  const add = (text, warn) => tips.push({ text, warn });
+  add("Leave this page open on screen all night. It cannot ring from a locked phone or a closed tab.");
+  if (state.wakeLock) add("Screen will stay on by itself while the alarm is set.");
+  else if ("wakeLock" in navigator && window.isSecureContext) add("The screen is kept on automatically once the alarm is set.");
+  else add("This address is not HTTPS, so the page cannot keep the screen on. Set Settings > Display & Brightness > Auto-Lock to Never tonight.", true);
+  add("Plug the phone in and turn media volume up.");
+  add(navigator.audioSession ? "Sound plays even with the Ring/Silent switch on Silent."
+                             : "Set the Ring/Silent switch to Ring. Silent mode can mute web audio.");
+  if (state.birds.length && !state.birds.some((b) => b.audio))
+    add("No recordings yet, so you will hear placeholder chirps. Run the fetch script to add real birdsong.", true);
+  $("tips").replaceChildren(...tips.map((t) => {
+    const li = document.createElement("li");
+    li.textContent = t.text;
+    if (t.warn) li.className = "warn";
+    return li;
+  }));
+}
+
+function tick() {
+  const now = new Date();
+  $("nightClock").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (state.armed && !state.ringing && now.getTime() >= state.armed.fire) ring();
+}
+
+/* ---------- Wiring ---------- */
+
+$("setBtn").addEventListener("click", () => {
+  localStorage.setItem("birdsong.time", $("time").value);
+  localStorage.setItem("birdsong.enabled", "1");
+  arm(nextFire($("time").value), true);
+});
+$("testBtn").addEventListener("click", () => arm(Date.now() + 10000, true));
+$("cancelBtn").addEventListener("click", disarm);
+$("nightBack").addEventListener("click", () => show("home"));
+$("dismiss").addEventListener("click", dismiss);
+$("wake").addEventListener("click", () => {
+  if (state.ctx && state.ctx.state !== "running") state.ctx.resume().then(checkSound).catch(() => {});
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (state.armed) requestWakeLock();          // the lock is dropped whenever the page is hidden
+  tick();
+});
+
+$("time").value = localStorage.getItem("birdsong.time") || "07:00";
+setInterval(tick, 1000);
+tick();
+refreshTips();
+loadDeck().then(refreshHome).catch(() =>
+  setStatus("Could not load assets/birds/index.json. Open this page through the local server, not as a file."));
+
+if ("serviceWorker" in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

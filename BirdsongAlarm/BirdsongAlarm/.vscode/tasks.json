@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Birdsong: serve to phone",
+      "type": "process",
+      "command": "python3",
+      "windows": { "command": "python" },
+      "args": ["tools/serve.py"],
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Birdsong: fetch bird recordings and photos",
+      "type": "process",
+      "command": "python3",
+      "windows": { "command": "python" },
+      "args": ["tools/fetch_assets.py", "--key", "${input:xcKey}"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Birdsong: rebuild asset index",
+      "type": "process",
+      "command": "python3",
+      "windows": { "command": "python" },
+      "args": ["tools/fetch_assets.py", "--index-only"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "xcKey",
+      "type": "promptString",
+      "description": "xeno-canto API key (from xeno-canto.org/account)",
+      "password": true
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+# Generates BirdsongAlarm.xcodeproj with XcodeGen (the cloud build runs this for you).
+name: BirdsongAlarm
+options:
+  bundleIdPrefix: com.birdsong.personal
+  deploymentTarget:
+    iOS: "26.0"
+targets:
+  BirdsongAlarm:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      # Blue folder reference: keeps the 20 bird folders intact inside the app.
+      - path: assets
+        type: folder
+        buildPhase: resources
+      # Short alarm clips, copied flat to the bundle root where AlarmKit looks for them.
+      - path: Clips
+        optional: true
+        buildPhase: resources
+    scheme: {}
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

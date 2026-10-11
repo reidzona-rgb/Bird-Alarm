@@ -1,0 +1,9 @@
+build/
+Payload/
+Clips/
+*.ipa
+*.xcodeproj
+build.log
+__pycache__/
+.DS_Store
+.xeno_canto_api_key.txt
