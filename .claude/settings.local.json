@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run *)",
+      "PowerShell(gh run list --repo rzona-msis/Bird-Alarm-Project --limit 5)",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git remote *)"
+    ]
+  }
+}
