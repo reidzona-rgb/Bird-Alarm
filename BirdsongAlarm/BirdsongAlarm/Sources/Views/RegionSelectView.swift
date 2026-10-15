@@ -1,68 +1,153 @@
 import SwiftUI
 
-// MARK: - Region definitions
+// MARK: - Region data
 
 struct BirdRegion: Identifiable {
-    let id: String          // matches metadata region field
-    let label: String
-    let polygon: [CGPoint]  // normalized 0–1 coords: x=(lon+180)/360, y=(90-lat)/180
+    let id: String
+    let label: String        // full name for the list
+    let shortLabel: String   // abbreviated for the map overlay
+    let polygon: [CGPoint]   // normalised Mercator 0–1 coords
 }
 
+// Mercator, clamped ±79.9°, normalised so lat=80°→y=0, lat=-80°→y=1
+private let _mMax = log(tan(.pi / 4 + 80 * .pi / 360))
 private func pt(_ lon: Double, _ lat: Double) -> CGPoint {
-    CGPoint(x: (lon + 180) / 360, y: (90 - lat) / 180)
+    let φ = min(79.9, max(-79.9, lat)) * .pi / 180
+    return CGPoint(x: (lon + 180) / 360,
+                   y: (1 - log(tan(.pi / 4 + φ / 2)) / _mMax) / 2)
 }
 
 let allRegions: [BirdRegion] = [
-    BirdRegion(id: "eastern_na", label: "Eastern North America", polygon: [
-        pt(-100,72), pt(-50,72), pt(-50,25), pt(-65,15), pt(-85,15), pt(-100,25)
+
+    BirdRegion(id: "eastern_na", label: "Eastern North America", shortLabel: "E. N. America",
+    polygon: [
+        pt(-100,70), pt(-88,74), pt(-78,73), pt(-65,60),
+        pt(-52,47), pt(-60,47), pt(-66,44), pt(-70,42),
+        pt(-74,40), pt(-76,34), pt(-80,32), pt(-81,25),
+        pt(-90,25), pt(-97,25), pt(-100,30), pt(-100,70)
     ]),
-    BirdRegion(id: "western_na", label: "Western North America", polygon: [
-        pt(-170,72), pt(-100,72), pt(-100,25), pt(-117,15), pt(-140,15), pt(-170,55)
+
+    BirdRegion(id: "western_na", label: "Western North America", shortLabel: "W. N. America",
+    polygon: [
+        pt(-168,66), pt(-161,72), pt(-148,70), pt(-140,70),
+        pt(-100,70), pt(-100,30), pt(-97,25), pt(-106,22),
+        pt(-117,22), pt(-117,32), pt(-122,37), pt(-124,49),
+        pt(-130,54), pt(-141,59), pt(-153,59), pt(-168,66)
     ]),
-    BirdRegion(id: "central_america", label: "Central America & Caribbean", polygon: [
-        pt(-100,25), pt(-55,25), pt(-55,8), pt(-82,8), pt(-100,20)
+
+    BirdRegion(id: "central_america", label: "Central America & Caribbean", shortLabel: "C. America\n& Caribbean",
+    polygon: [
+        pt(-97,25), pt(-81,25), pt(-80,22), pt(-83,10),
+        pt(-77,7),  pt(-68,12), pt(-60,10), pt(-60,24),
+        pt(-73,18), pt(-84,22), pt(-87,16), pt(-90,21),
+        pt(-97,25)
     ]),
-    BirdRegion(id: "amazonia", label: "Amazonia", polygon: [
-        pt(-80,5), pt(-44,5), pt(-44,-18), pt(-73,-18), pt(-80,0)
+
+    BirdRegion(id: "amazonia", label: "Amazonia", shortLabel: "Amazonia",
+    polygon: [
+        pt(-80,8),  pt(-65,12), pt(-60,12), pt(-51,5),
+        pt(-44,5),  pt(-44,-15), pt(-50,-20), pt(-57,-22),
+        pt(-60,-20),pt(-73,-18),pt(-80,0),  pt(-80,8)
     ]),
-    BirdRegion(id: "andes_pacific_sa", label: "Andes & Pacific South America", polygon: [
-        pt(-82,12), pt(-60,12), pt(-60,-20), pt(-75,-20), pt(-82,5)
+
+    BirdRegion(id: "andes_pacific_sa", label: "Andes & Pacific South America", shortLabel: "Andes &\nPacific SA",
+    polygon: [
+        pt(-82,10), pt(-77,7),  pt(-80,0),  pt(-73,-18),
+        pt(-68,-22),pt(-70,-35),pt(-72,-42),pt(-76,-35),
+        pt(-80,-5), pt(-82,10)
     ]),
-    BirdRegion(id: "southern_sa", label: "Southern South America", polygon: [
-        pt(-76,-20), pt(-44,-20), pt(-44,-58), pt(-68,-58), pt(-76,-40)
+
+    BirdRegion(id: "southern_sa", label: "Southern South America", shortLabel: "S. South\nAmerica",
+    polygon: [
+        pt(-60,-20),pt(-57,-22),pt(-44,-20),pt(-41,-22),
+        pt(-34,-7), pt(-40,-20),pt(-44,-23),pt(-52,-33),
+        pt(-58,-35),pt(-65,-55),pt(-68,-55),pt(-70,-50),
+        pt(-70,-35),pt(-68,-22),pt(-60,-20)
     ]),
-    BirdRegion(id: "western_europe", label: "Western & Central Europe", polygon: [
-        pt(-12,72), pt(25,72), pt(25,35), pt(-5,35), pt(-12,45)
+
+    BirdRegion(id: "western_europe", label: "Western & Central Europe", shortLabel: "W. Europe",
+    polygon: [
+        pt(-12,72), pt(8,72),  pt(16,70), pt(28,72), pt(30,60),
+        pt(28,55),  pt(22,55), pt(18,45), pt(14,45), pt(8,44),
+        pt(3,43),   pt(-2,44), pt(-9,38), pt(-9,43), pt(0,51),
+        pt(-5,58),  pt(-12,62),pt(-12,72)
     ]),
-    BirdRegion(id: "eastern_europe", label: "Eastern Europe & Russia", polygon: [
-        pt(25,80), pt(180,80), pt(180,45), pt(25,45)
+
+    BirdRegion(id: "eastern_europe", label: "Eastern Europe & Russia", shortLabel: "E. Europe\n& Russia",
+    polygon: [
+        pt(28,72),  pt(180,73), pt(180,45), pt(135,35),
+        pt(120,40), pt(80,45),  pt(60,44),  pt(50,45),
+        pt(30,50),  pt(23,55),  pt(30,60),  pt(28,72)
     ]),
-    BirdRegion(id: "west_central_africa", label: "West & Central Africa", polygon: [
-        pt(-18,18), pt(30,18), pt(30,-5), pt(-5,-5), pt(-18,10)
+
+    BirdRegion(id: "west_central_africa", label: "West & Central Africa", shortLabel: "W/C Africa",
+    polygon: [
+        pt(-18,20), pt(0,20),   pt(15,24),  pt(30,22),
+        pt(35,15),  pt(30,5),   pt(28,-5),
+        pt(12,-5),  pt(0,0),    pt(-5,5),
+        pt(-18,15), pt(-18,20)
     ]),
-    BirdRegion(id: "east_africa", label: "East Africa", polygon: [
-        pt(28,18), pt(52,18), pt(52,-12), pt(30,-12), pt(28,5)
+
+    BirdRegion(id: "east_africa", label: "East Africa", shortLabel: "E. Africa",
+    polygon: [
+        pt(30,22),  pt(38,22),  pt(45,12),  pt(51,12),
+        pt(44,-12), pt(36,-12), pt(30,-5),  pt(28,5),
+        pt(35,15),  pt(30,22)
     ]),
-    BirdRegion(id: "southern_africa", label: "Southern Africa & Madagascar", polygon: [
-        pt(10,-5), pt(52,-5), pt(52,-38), pt(20,-38), pt(10,-20)
+
+    BirdRegion(id: "southern_africa", label: "Southern Africa & Madagascar", shortLabel: "S. Africa &\nMadagascar",
+    polygon: [
+        pt(10,-5),  pt(28,-5),  pt(36,-12), pt(40,-10),
+        pt(44,-12), pt(44,-26), pt(36,-35), pt(26,-35),
+        pt(17,-35), pt(16,-25), pt(12,-18), pt(10,-5)
     ]),
-    BirdRegion(id: "mena", label: "Middle East & North Africa", polygon: [
-        pt(-18,38), pt(65,38), pt(65,12), pt(40,12), pt(-18,15)
+
+    BirdRegion(id: "mena", label: "Middle East & North Africa", shortLabel: "MENA",
+    polygon: [
+        pt(-18,38), pt(0,38),   pt(20,38),  pt(36,42),
+        pt(42,42),  pt(65,38),  pt(65,12),
+        pt(44,12),  pt(37,15),  pt(32,22),
+        pt(25,30),  pt(13,33),  pt(-5,36),
+        pt(-10,35), pt(-18,38)
     ]),
-    BirdRegion(id: "south_asia", label: "South Asia", polygon: [
-        pt(60,38), pt(92,38), pt(92,5), pt(72,5), pt(60,20)
+
+    BirdRegion(id: "south_asia", label: "South Asia", shortLabel: "South Asia",
+    polygon: [
+        pt(60,38),  pt(72,38),  pt(80,38),  pt(92,32),
+        pt(92,22),  pt(85,12),  pt(80,8),
+        pt(72,8),   pt(66,20),  pt(60,22),  pt(60,38)
     ]),
-    BirdRegion(id: "southeast_asia", label: "Southeast Asia", polygon: [
-        pt(92,28), pt(142,28), pt(142,-10), pt(95,-10), pt(92,10)
+
+    BirdRegion(id: "southeast_asia", label: "Southeast Asia", shortLabel: "SE Asia",
+    polygon: [
+        pt(92,28),  pt(100,28), pt(120,30), pt(135,10),
+        pt(142,5),  pt(130,-8), pt(128,-8),
+        pt(106,-8), pt(95,-6),  pt(95,5),
+        pt(92,22),  pt(92,28)
     ]),
-    BirdRegion(id: "east_asia", label: "East Asia", polygon: [
-        pt(100,55), pt(148,55), pt(148,20), pt(100,20)
+
+    BirdRegion(id: "east_asia", label: "East Asia", shortLabel: "East Asia",
+    polygon: [
+        pt(100,55), pt(135,55), pt(142,55), pt(148,43),
+        pt(142,35), pt(135,34), pt(125,34), pt(122,30),
+        pt(120,22), pt(110,20), pt(100,22),
+        pt(100,45), pt(100,55)
     ]),
-    BirdRegion(id: "australia", label: "Australia", polygon: [
-        pt(112,-10), pt(155,-10), pt(155,-45), pt(112,-45)
+
+    BirdRegion(id: "australia", label: "Australia", shortLabel: "Australia",
+    polygon: [
+        pt(113,-22),pt(114,-26),pt(115,-34),pt(118,-35),
+        pt(129,-35),pt(138,-38),pt(149,-38),pt(152,-28),
+        pt(150,-22),pt(145,-15),pt(136,-12),pt(130,-12),
+        pt(122,-18),pt(113,-22)
     ]),
-    BirdRegion(id: "nz_pacific", label: "New Zealand & Pacific", polygon: [
-        pt(155,-8), pt(220,-8), pt(220,-52), pt(165,-52), pt(155,-30)
+
+    BirdRegion(id: "nz_pacific", label: "New Zealand & Pacific", shortLabel: "NZ &\nPacific",
+    polygon: [
+        pt(155,-8), pt(180,-8), pt(180,-52),
+        pt(166,-46),pt(168,-36),pt(174,-34),
+        pt(178,-37),pt(170,-30),pt(155,-15),
+        pt(155,-8)
     ]),
 ]
 
@@ -71,39 +156,107 @@ let allRegions: [BirdRegion] = [
 struct WorldMapView: View {
     @Binding var selected: Set<String>
 
+    @State private var zoom: CGFloat = 1
+    @State private var pan: CGSize = .zero
+    @GestureState private var liveZoom: CGFloat = 1
+    @GestureState private var livePan: CGSize = .zero
+
+    private var effectiveZoom: CGFloat { min(max(zoom * liveZoom, 1), 6) }
+    private var effectivePan: CGSize {
+        CGSize(width: pan.width + livePan.width,
+               height: pan.height + livePan.height)
+    }
+
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
+
             ZStack {
-                Color(white: 0.12)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                // Ocean
+                Color(red: 0.44, green: 0.73, blue: 0.87)
+
                 Canvas { ctx, size in
+                    // Graticule
+                    var grid = Path()
+                    for lon in stride(from: -180.0, through: 180.0, by: 30.0) {
+                        let a = pt(lon, 79.9), b = pt(lon, -79.9)
+                        grid.move(to: CGPoint(x: a.x * size.width, y: a.y * size.height))
+                        grid.addLine(to: CGPoint(x: b.x * size.width, y: b.y * size.height))
+                    }
+                    for lat in stride(from: -60.0, through: 60.0, by: 30.0) {
+                        let a = pt(-180, lat), b = pt(180, lat)
+                        grid.move(to: CGPoint(x: a.x * size.width, y: a.y * size.height))
+                        grid.addLine(to: CGPoint(x: b.x * size.width, y: b.y * size.height))
+                    }
+                    ctx.stroke(grid, with: .color(.white.opacity(0.15)), lineWidth: 0.4)
+
+                    // Region fills + borders
                     for region in allRegions {
+                        let pts = region.polygon.map {
+                            CGPoint(x: $0.x * size.width, y: $0.y * size.height)
+                        }
                         var path = Path()
-                        let pts = region.polygon.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) }
                         guard let first = pts.first else { continue }
                         path.move(to: first)
                         pts.dropFirst().forEach { path.addLine(to: $0) }
                         path.closeSubpath()
-                        let isOn = selected.contains(region.id)
-                        ctx.fill(path, with: .color(isOn ? Color.dawnYellow.opacity(0.75) : Color.white.opacity(0.18)))
-                        ctx.stroke(path, with: .color(Color.black.opacity(0.5)), lineWidth: 0.8)
+                        let on = selected.contains(region.id)
+                        ctx.fill(path, with: .color(
+                            on ? Color(red: 1.0, green: 0.82, blue: 0.22).opacity(0.9)
+                               : Color.white.opacity(0.88)
+                        ))
+                        ctx.stroke(path, with: .color(.black.opacity(0.28)), lineWidth: 0.7)
                     }
                 }
-                // Tap targets
+
+                // Tap targets + labels (in the same coordinate space as the Canvas)
                 ForEach(allRegions) { region in
-                    let pts = region.polygon.map { CGPoint(x: $0.x * w, y: $0.y * h) }
-                    let center = centroid(of: pts)
-                    Color.clear
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                        .position(center)
-                        .onTapGesture { toggle(region.id) }
+                    let pts = region.polygon.map {
+                        CGPoint(x: $0.x * w, y: $0.y * h)
+                    }
+                    let c = centroid(of: pts)
+                    let on = selected.contains(region.id)
+
+                    ZStack {
+                        Color.clear
+                            .frame(width: 70, height: 50)
+                            .contentShape(Rectangle())
+                            .onTapGesture { toggle(region.id) }
+
+                        Text(region.shortLabel)
+                            .font(.system(size: 6.5, weight: .bold))
+                            .foregroundColor(on ? Color(white: 0.08) : Color(white: 0.15))
+                            .multilineTextAlignment(.center)
+                            .shadow(color: .white.opacity(0.7), radius: 1)
+                            .allowsHitTesting(false)
+                    }
+                    .position(c)
                 }
             }
         }
         .aspectRatio(2, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .scaleEffect(effectiveZoom)
+        .offset(effectivePan)
+        .gesture(
+            MagnificationGesture()
+                .updating($liveZoom) { v, s, _ in s = v }
+                .onEnded { zoom = min(max(zoom * $0, 1), 6) }
+                .simultaneously(with:
+                    DragGesture(minimumDistance: 4)
+                        .updating($livePan) { v, s, _ in s = v.translation }
+                        .onEnded {
+                            pan.width  += $0.translation.width
+                            pan.height += $0.translation.height
+                        }
+                )
+        )
+        .onTapGesture(count: 2) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                zoom = 1; pan = .zero
+            }
+        }
     }
 
     private func toggle(_ id: String) {
@@ -112,13 +265,12 @@ struct WorldMapView: View {
 
     private func centroid(of pts: [CGPoint]) -> CGPoint {
         guard !pts.isEmpty else { return .zero }
-        let x = pts.map(\.x).reduce(0, +) / CGFloat(pts.count)
-        let y = pts.map(\.y).reduce(0, +) / CGFloat(pts.count)
-        return CGPoint(x: x, y: y)
+        CGPoint(x: pts.map(\.x).reduce(0, +) / CGFloat(pts.count),
+                y: pts.map(\.y).reduce(0, +) / CGFloat(pts.count))
     }
 }
 
-// MARK: - Full region select view
+// MARK: - Region select view
 
 struct RegionSelectView: View {
     @EnvironmentObject private var store: AlarmStore
@@ -126,7 +278,7 @@ struct RegionSelectView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Tap regions on the map or use the list. Leave all unchecked to draw from every region.")
+                Text("Tap a region to select it. Pinch to zoom, drag to pan, double-tap to reset. Leave all unchecked to draw from every region.")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -147,7 +299,7 @@ struct RegionSelectView: View {
                     let count = store.library.birds.filter { $0.region == region.id }.count
                     Button {
                         if isOn { store.selectedRegions.remove(region.id) }
-                        else { store.selectedRegions.insert(region.id) }
+                        else    { store.selectedRegions.insert(region.id) }
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: isOn ? "checkmark.square.fill" : "square")
