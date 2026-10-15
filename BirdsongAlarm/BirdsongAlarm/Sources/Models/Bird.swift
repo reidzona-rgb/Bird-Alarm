@@ -47,7 +47,7 @@ final class BirdLibrary {
 
     let birds: [Bird]
 
-    var playable: [Bird] { birds.filter { $0.audioURL != nil } }
+    private(set) lazy var playable: [Bird] = birds.filter { $0.audioURL != nil }
 
     /// All distinct region IDs present in the library.
     var regions: [String] { Array(Set(birds.map { $0.region })).sorted() }

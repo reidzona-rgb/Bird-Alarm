@@ -2,21 +2,25 @@ import Foundation
 
 /// The Chorus Deck shuffle.
 ///
-/// Works like a deck of cards: every bird sings once before any bird repeats,
-/// then the deck is reshuffled into a new order for the next round. The
-/// reshuffle also keeps a minimum gap, so a bird that sang near the end of one
-/// round cannot come straight back at the start of the next. With 20 birds,
-/// the same bird is always at least 10 mornings apart.
+/// Works like a deck of cards: every slot is dealt once before the deck is
+/// reshuffled for the next round. Higher-scoring birds fill several slots, so
+/// the deal also keeps a minimum gap per bird: a bird cannot come back until
+/// enough other birds have sung, never back to back, and never twice across a
+/// day's alarms (each alarm takes the next card in the deal).
 ///
-/// The bird for a given morning is calculated from the calendar date alone.
-/// Nothing is stored, so re-signing, updating, or even deleting and
+/// Every ring's bird is calculated from the calendar date and the alarm's
+/// place in the day alone. Nothing is stored, so re-signing, updating, or
 /// reinstalling the app cannot reset the shuffle or cause an early repeat.
 enum ShuffleDeck {
-    /// Which slot of the deck (0..<count) sings on the given day.
-    static func slot(count: Int, day: Int) -> Int {
+    /// Which slot of the deck sings at position `index` of the endless deal.
+    /// `keys[slot]` identifies the bird in that slot (0..<distinct birds).
+    /// Within any `spread + 1` consecutive positions every bird is different
+    /// (as long as the deck has that many birds), whatever the weighting.
+    static func slot(keys: [Int], index: Int, spread: Int) -> Int {
+        let count = keys.count
         guard count > 1 else { return 0 }
-        let safeDay = max(day, 0)
-        return order(count: count, round: safeDay / count)[safeDay % count]
+        let i = max(index, 0)
+        return order(keys: keys, round: i / count, spread: spread)[i % count]
     }
 
     /// Whole days since 1 January 2026 in the phone's calendar.
@@ -30,45 +34,107 @@ enum ShuffleDeck {
         return calendar.dateComponents([.day], from: reference, to: target).day ?? 0
     }
 
-    /// Fewest mornings allowed between two appearances of the same bird.
-    static func minimumGap(count: Int) -> Int {
-        min(count, max(2, count / 2))
+    /// How many other birds must sing before a bird may sing again.
+    static func minimumGap(distinct: Int) -> Int {
+        max(1, min(distinct - 1, distinct / 4))
     }
 
-    /// The deck order for a round. Each round is built from the one before it,
-    /// starting at round 0, so the result is always the same for the same inputs.
-    static func order(count: Int, round: Int) -> [Int] {
-        var current = Array(0..<count)
-        guard count > 1 else { return current }
+    private struct CacheKey: Hashable {
+        let keys: [Int]
+        let round: Int
+        let spread: Int
+    }
+    private static var cache: [CacheKey: [Int]] = [:]
+    private static let lock = NSLock()
 
-        // Round 0: a plain shuffle.
-        var state = seed(for: 0)
-        var i = count - 1
-        while i > 0 {
-            let j = Int(nextRandom(&state) % UInt64(i + 1))
-            current.swapAt(i, j)
-            i -= 1
-        }
-        guard round >= 1 else { return current }
+    /// The deal order for a round (a list of slots). Each round continues from
+    /// the one before it, starting at round 0, so the result is always the same
+    /// for the same inputs.
+    static func order(keys: [Int], round: Int, spread: Int) -> [Int] {
+        lock.lock()
+        defer { lock.unlock() }
 
-        // Later rounds: draw one bird at a time, skipping any bird that sang too recently.
-        let gap = minimumGap(count: count)
-        for r in 1...round {
-            state = seed(for: r)
-            var lastPosition = [Int](repeating: 0, count: count)
-            for (position, bird) in current.enumerated() { lastPosition[bird] = position }
+        let count = keys.count
+        guard count > 1 else { return Array(0..<count) }
+        if let hit = cache[CacheKey(keys: keys, round: round, spread: spread)] { return hit }
 
-            var remaining = Array(0..<count)
-            var next: [Int] = []
-            for position in 0..<count {
-                let eligible = remaining.filter { (count - lastPosition[$0]) + position >= gap }
-                let pick = eligible[Int(nextRandom(&state) % UInt64(eligible.count))]
-                next.append(pick)
-                remaining.removeAll { $0 == pick }
+        var start = 0
+        var previous: [Int]?
+        for r in stride(from: round - 1, through: 0, by: -1) {
+            if let hit = cache[CacheKey(keys: keys, round: r, spread: spread)] {
+                previous = hit
+                start = r + 1
+                break
             }
-            current = next
         }
-        return current
+
+        let distinct = (keys.max() ?? 0) + 1
+        var firstSlot = [Int](repeating: 0, count: distinct)
+        for (slot, key) in keys.enumerated().reversed() { firstSlot[key] = slot }
+        let hard = max(0, min(spread, distinct - 1))
+        let gap = max(minimumGap(distinct: distinct), hard)
+
+        var result: [Int] = []
+        for r in start...round {
+            var lastSeen = [Int](repeating: Int.min / 2, count: distinct)
+            if let previous {
+                for (position, slot) in previous.enumerated() { lastSeen[keys[slot]] = position - count }
+            }
+            result = deal(keys: keys, round: r, lastSeen: &lastSeen, gap: gap, hard: hard, firstSlot: firstSlot)
+            previous = result
+        }
+
+        if cache.count > 32 { cache.removeAll() }
+        cache[CacheKey(keys: keys, round: round, spread: spread)] = result
+        return result
+    }
+
+    /// Deals one round, one position at a time, preferring birds that have not
+    /// sung within `gap` positions. When the deck runs short, the bird heard
+    /// longest ago wins; a bird heard within `hard` positions is never dealt
+    /// while another bird is available.
+    private static func deal(keys: [Int], round: Int, lastSeen: inout [Int],
+                             gap: Int, hard: Int, firstSlot: [Int]) -> [Int] {
+        let count = keys.count
+        var state = seed(for: round)
+        var remaining = Array(0..<count)
+        var result: [Int] = []
+        result.reserveCapacity(count)
+
+        for position in 0..<count {
+            var pick = -1
+            for _ in 0..<32 where !remaining.isEmpty {
+                let i = Int(nextRandom(&state) % UInt64(remaining.count))
+                if position - lastSeen[keys[remaining[i]]] > gap {
+                    pick = i
+                    break
+                }
+            }
+            if pick < 0 && !remaining.isEmpty {
+                let startAt = Int(nextRandom(&state) % UInt64(remaining.count))
+                pick = startAt
+                for step in 1..<max(remaining.count, 1) {
+                    let i = (startAt + step) % remaining.count
+                    if lastSeen[keys[remaining[i]]] < lastSeen[keys[remaining[pick]]] { pick = i }
+                }
+                if position - lastSeen[keys[remaining[pick]]] <= hard { pick = -1 }
+            }
+
+            let slot: Int
+            if pick >= 0 {
+                slot = remaining[pick]
+                remaining.swapAt(pick, remaining.count - 1)
+                remaining.removeLast()
+            } else {
+                // Only recent birds are left in this round: deal the bird heard longest ago instead.
+                var bird = 0
+                for b in 1..<max(lastSeen.count, 1) where lastSeen[b] < lastSeen[bird] { bird = b }
+                slot = firstSlot[bird]
+            }
+            result.append(slot)
+            lastSeen[keys[slot]] = position
+        }
+        return result
     }
 
     private static func seed(for round: Int) -> UInt64 {
