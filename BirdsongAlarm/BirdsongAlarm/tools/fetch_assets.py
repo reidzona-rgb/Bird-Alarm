@@ -3,7 +3,8 @@
 
 Audio  : xeno-canto.org when you supply its free API key (quality-rated songs),
          otherwise iNaturalist.org sound observations (no key needed)
-Photos : iNaturalist.org (Creative Commons licensed research-grade observations)
+Photos : iNaturalist.org (CC-licensed; tries research-grade → any grade → genus
+         fallback), then Wikimedia Commons as a final fallback
 
 Usage (from the project folder; the cloud build runs this for you):
     python3 tools/fetch_assets.py                 # no key: iNaturalist only
@@ -23,6 +24,7 @@ fields in each metadata.json, and rewrites assets/CREDITS.md.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -167,15 +169,24 @@ def fetch_audio(meta, folder, key, country):
     return choice["credit"], choice["note"]
 
 
-def find_photo(scientific_name):
+INAT_TAXON = "https://api.inaturalist.org/v1/taxa"
+WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
+
+
+def _inat_photo_search(taxon_name, quality_grade=None, per_page=20):
+    """Search iNaturalist observations for a CC-licensed photo."""
     params = {
-        "taxon_name": scientific_name,
+        "taxon_name": taxon_name,
         "photo_license": "cc0,cc-by,cc-by-sa,cc-by-nc,cc-by-nc-sa",
-        "quality_grade": "research",
         "order_by": "votes",
-        "per_page": 10,
+        "per_page": per_page,
     }
-    data = get_json(INAT_API + "?" + urllib.parse.urlencode(params))
+    if quality_grade:
+        params["quality_grade"] = quality_grade
+    try:
+        data = get_json(INAT_API + "?" + urllib.parse.urlencode(params))
+    except Exception:
+        return None
     for obs in data.get("results", []):
         for photo in obs.get("photos", []):
             url = photo.get("url")
@@ -186,6 +197,83 @@ def find_photo(scientific_name):
                     "licence": photo.get("license_code") or "",
                     "page": obs.get("uri") or "",
                 }
+    return None
+
+
+def _wikimedia_photo(scientific_name):
+    """Fallback: first freely-licensed image from Wikimedia Commons for the species."""
+    # Search for the species page
+    search_params = {
+        "action": "query",
+        "format": "json",
+        "list": "search",
+        "srsearch": scientific_name,
+        "srnamespace": "6",   # File namespace
+        "srlimit": "5",
+    }
+    try:
+        data = get_json(WIKIMEDIA_API + "?" + urllib.parse.urlencode(search_params))
+        for hit in data.get("query", {}).get("search", []):
+            title = hit.get("title", "")
+            if not title.startswith("File:"):
+                continue
+            ext = os.path.splitext(title)[1].lower()
+            if ext not in (".jpg", ".jpeg", ".png"):
+                continue
+            # Get the direct file URL
+            info_params = {
+                "action": "query",
+                "format": "json",
+                "titles": title,
+                "prop": "imageinfo",
+                "iiprop": "url|extmetadata",
+            }
+            info = get_json(WIKIMEDIA_API + "?" + urllib.parse.urlencode(info_params))
+            for page in info.get("query", {}).get("pages", {}).values():
+                ii = page.get("imageinfo", [{}])[0]
+                file_url = ii.get("url")
+                meta = ii.get("extmetadata", {})
+                licence = meta.get("LicenseShortName", {}).get("value", "")
+                # Only accept CC or public domain
+                if file_url and any(k in licence.lower() for k in ("cc", "public")):
+                    artist = meta.get("Artist", {}).get("value", "Wikimedia contributor")
+                    # Strip HTML tags from artist
+                    artist = re.sub(r"<[^>]+>", "", artist).strip()
+                    return {
+                        "url": file_url,
+                        "attribution": artist,
+                        "licence": licence,
+                        "page": f"https://commons.wikimedia.org/wiki/{urllib.parse.quote(title)}",
+                    }
+    except Exception:
+        pass
+    return None
+
+
+def find_photo(scientific_name):
+    """Try iNaturalist (research → any grade → genus-only) then Wikimedia Commons."""
+    genus = scientific_name.split()[0]
+
+    # 1. iNaturalist – research-grade only
+    result = _inat_photo_search(scientific_name, quality_grade="research")
+    if result:
+        return result
+
+    # 2. iNaturalist – any quality grade (includes needs_id and casual)
+    result = _inat_photo_search(scientific_name, quality_grade=None)
+    if result:
+        return result
+
+    # 3. iNaturalist – genus-level search (broader net for rare species)
+    result = _inat_photo_search(genus, quality_grade=None, per_page=10)
+    if result:
+        return result
+
+    # 4. Wikimedia Commons
+    result = _wikimedia_photo(scientific_name)
+    if result:
+        return result
+
     return None
 
 
