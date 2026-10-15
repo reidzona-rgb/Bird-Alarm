@@ -26,10 +26,12 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
 BIRDS = os.path.join(ROOT, "birds")
@@ -224,6 +226,8 @@ def main():
     parser.add_argument("--skip-images", action="store_true")
     parser.add_argument("--index-only", action="store_true",
                         help="download nothing; just rebuild index.json and CREDITS.md")
+    parser.add_argument("--workers", type=int, default=10,
+                        help="parallel download threads (default 10)")
     args = parser.parse_args()
     if args.index_only:
         args.skip_audio = args.skip_images = True
@@ -233,24 +237,28 @@ def main():
 
     folders = sorted(d for d in os.listdir(BIRDS) if os.path.isdir(os.path.join(BIRDS, d)))
     problems = []
+    print_lock = threading.Lock()
 
-    for name in folders:
+    def process_bird(name):
+        local_problems = []
         if args.only and not name.startswith(args.only):
-            continue
+            return local_problems
         folder = os.path.join(BIRDS, name)
         meta_path = os.path.join(folder, "metadata.json")
         with open(meta_path, encoding="utf-8") as fh:
             meta = json.load(fh)
-        print(f"{name}: {meta['name']}")
+        with print_lock:
+            print(f"{name}: {meta['name']}")
 
         if not args.skip_audio and (args.force or not has_any(folder, AUDIO_FILES)):
             try:
                 meta["audio_credit"], note = fetch_audio(meta, folder, args.key, args.country)
-                print(f"   audio  {note}")
-            except Exception as err:  # keep going; report at the end
-                problems.append(f"{name} audio: {err}")
-                print(f"   audio  FAILED: {err}")
-            time.sleep(1)
+                with print_lock:
+                    print(f"   audio  {note}")
+            except Exception as err:
+                local_problems.append(f"{name} audio: {err}")
+                with print_lock:
+                    print(f"   audio  FAILED: {err}")
 
         if not args.skip_images and (args.force or not has_any(folder, ["image.png", "image.jpg"])):
             try:
@@ -263,15 +271,22 @@ def main():
                 if to_png(jpg, png):
                     os.remove(jpg)
                 meta["image_credit"] = f"{photo['attribution']} {photo['page']}".strip()
-                print(f"   image  {photo['licence'] or 'licensed'}")
+                with print_lock:
+                    print(f"   image  {photo['licence'] or 'licensed'}")
             except Exception as err:
-                problems.append(f"{name} image: {err}")
-                print(f"   image  FAILED: {err}")
-            time.sleep(1)
+                local_problems.append(f"{name} image: {err}")
+                with print_lock:
+                    print(f"   image  FAILED: {err}")
 
         with open(meta_path, "w", encoding="utf-8") as fh:
             json.dump(meta, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
+        return local_problems
+
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = {pool.submit(process_bird, name): name for name in folders}
+        for future in as_completed(futures):
+            problems.extend(future.result())
 
     # Attribution file: the Creative Commons licences require credit.
     lines = ["# Credits", "",
