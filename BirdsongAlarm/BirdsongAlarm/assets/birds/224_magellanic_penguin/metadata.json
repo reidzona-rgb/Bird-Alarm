@@ -1,0 +1,11 @@
+{
+  "name": "Magellanic Penguin",
+  "scientific_name": "Spheniscus magellanicus",
+  "region": "southern_sa",
+  "harmonic_score": 3,
+  "facts": [
+    "Gives a loud, braying donkey-like call at breeding colonies.",
+    "Nests on the coasts of Patagonia and Tierra del Fuego; forages offshore in winter.",
+    "Digs or uses pre-existing burrows for nesting; the same pair reuses the same burrow each year."
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "African Cuckoo",
+  "scientific_name": "Cuculus gularis",
+  "region": "west_central_africa",
+  "harmonic_score": 5,
+  "facts": [
+    "Song is a two-note hoo-hoo similar to the common cuckoo but higher.",
+    "Inhabits open woodland and savanna across sub-Saharan Africa.",
+    "Parasitizes fork-tailed drongos almost exclusively in most of its range."
+  ]
+}

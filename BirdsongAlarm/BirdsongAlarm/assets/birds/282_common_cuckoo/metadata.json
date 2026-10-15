@@ -1,0 +1,11 @@
+{
+  "name": "Common Cuckoo",
+  "scientific_name": "Cuculus canorus",
+  "region": "western_europe",
+  "harmonic_score": 5,
+  "facts": [
+    "Male gives the famous two-note cuck-oo; female produces a liquid, bubbling call.",
+    "Inhabits woodland, heath, and farmland across Europe and Asia; winters in Africa.",
+    "Lays one egg in each of several host nests; chick ejects all other eggs and nestlings."
+  ]
+}

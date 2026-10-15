@@ -1,0 +1,11 @@
+{
+  "name": "Chilean Flamingo",
+  "scientific_name": "Phoenicopterus chilensis",
+  "region": "southern_sa",
+  "harmonic_score": 3,
+  "facts": [
+    "Gives goose-like honking calls in flight; flocks create a constant murmur.",
+    "Inhabits salt lakes, lagoons, and coastal estuaries from Ecuador to Patagonia.",
+    "Feeds by filtering algae through a specialized bent bill held upside-down in the water."
+  ]
+}

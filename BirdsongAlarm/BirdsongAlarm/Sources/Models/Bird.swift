@@ -10,17 +10,13 @@ struct Bird: Identifiable, Equatable {
     let audioCredit: String?
     let imageCredit: String?
     let folder: URL
+    let region: String          // e.g. "eastern_na"
+    let harmonicScore: Int      // 1–10; higher = richer song, biases the shuffle
 
     static func == (lhs: Bird, rhs: Bird) -> Bool { lhs.id == rhs.id }
 
-    /// The bundled recording, if the folder has been filled.
-    var audioURL: URL? {
-        firstExisting(["audio.mp3", "audio.wav", "audio.m4a"])
-    }
-
-    var imageURL: URL? {
-        firstExisting(["image.png", "image.jpg", "image.jpeg"])
-    }
+    var audioURL: URL? { firstExisting(["audio.mp3", "audio.wav", "audio.m4a"]) }
+    var imageURL: URL? { firstExisting(["image.png", "image.jpg", "image.jpeg"]) }
 
     var image: UIImage? {
         guard let url = imageURL else { return nil }
@@ -42,16 +38,19 @@ private struct BirdMetadata: Decodable {
     let facts: [String]
     let audioCredit: String?
     let imageCredit: String?
+    let region: String?
+    let harmonicScore: Int?
 }
 
-/// Loads every bird folder from the app bundle. Nothing here touches the network.
 final class BirdLibrary {
     static let shared = BirdLibrary()
 
     let birds: [Bird]
 
-    /// Birds that have a recording and can be chosen for an alarm.
     var playable: [Bird] { birds.filter { $0.audioURL != nil } }
+
+    /// All distinct region IDs present in the library.
+    var regions: [String] { Array(Set(birds.map { $0.region })).sorted() }
 
     private init() {
         var loaded: [Bird] = []
@@ -72,7 +71,9 @@ final class BirdLibrary {
                     facts: meta.facts,
                     audioCredit: meta.audioCredit,
                     imageCredit: meta.imageCredit,
-                    folder: folder))
+                    folder: folder,
+                    region: meta.region ?? "eastern_na",
+                    harmonicScore: meta.harmonicScore ?? 6))
             }
         }
         birds = loaded

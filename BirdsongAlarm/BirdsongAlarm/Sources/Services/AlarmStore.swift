@@ -24,6 +24,7 @@ final class AlarmStore: ObservableObject {
         static let enabled = "alarm.enabled"
         static let handled = "alarm.handledKey"
         static let stopped = "alarm.stoppedKey"
+        static let selectedRegions = "deck.selectedRegions"
     }
 
     /// Opening the app this long after an alarm still shows that morning's bird.
@@ -69,6 +70,17 @@ final class AlarmStore: ObservableObject {
             defaults.set(parts.minute ?? 0, forKey: Key.minute)
             if activeKey != nil { clearCard() }
             updateNextFireDate()
+            if isEnabled { reconcileSoon() }
+        }
+    }
+
+    /// Regions the user has chosen to draw from. Empty = all regions.
+    @Published var selectedRegions: Set<String> = {
+        let saved = UserDefaults.standard.stringArray(forKey: Key.selectedRegions) ?? []
+        return Set(saved)
+    }() {
+        didSet {
+            defaults.set(Array(selectedRegions), forKey: Key.selectedRegions)
             if isEnabled { reconcileSoon() }
         }
     }
@@ -366,12 +378,24 @@ final class AlarmStore: ObservableObject {
 
     // MARK: Birds
 
+    /// Playable birds filtered to selected regions, or all if none selected.
+    private var activeDeck: [Bird] {
+        var pool = library.playable
+        if pool.isEmpty { pool = library.birds }
+        if !selectedRegions.isEmpty {
+            let filtered = pool.filter { selectedRegions.contains($0.region) }
+            if !filtered.isEmpty { pool = filtered }
+        }
+        // Expand pool by harmonic score so high-scoring birds appear more often.
+        // Score 10 → 10 slots, score 1 → 1 slot.
+        return pool.flatMap { bird in Array(repeating: bird, count: max(1, bird.harmonicScore)) }
+    }
+
     /// The randomization engine. Each morning's bird comes from the shuffled
     /// deck for that calendar date: all birds sing once before any repeats,
     /// and nothing is stored, so re-installing the app cannot reset it.
     private func bird(for date: Date) -> Bird? {
-        var pool = library.playable
-        if pool.isEmpty { pool = library.birds }        // deck not filled yet
+        let pool = activeDeck
         guard !pool.isEmpty else { return nil }
         let day = ShuffleDeck.dayNumber(for: date)
         return pool[ShuffleDeck.slot(count: pool.count, day: day)]
@@ -379,9 +403,7 @@ final class AlarmStore: ObservableObject {
 
     /// A plain random draw, used only for the preview button.
     private func randomBird() -> Bird? {
-        var pool = library.playable
-        if pool.isEmpty { pool = library.birds }
-        return pool.randomElement()
+        activeDeck.randomElement()
     }
 
     /// The system alarm can only play a short clip stored at the root of the app bundle.
@@ -454,7 +476,8 @@ final class AlarmStore: ObservableObject {
     /// The chorus has no time limit. It plays until the alarm is dismissed in
     /// the app or stopped from the lock screen.
     private func startChorus(lead: Bird, gentle: Bool) {
-        let companions = library.playable.filter { $0.id != lead.id }.shuffled()
+        let pool = activeDeck
+        let companions = pool.filter { $0.id != lead.id }.shuffled()
         chorus.startChorus(lead: lead, companions: Array(companions.prefix(2)), gentle: gentle)
     }
 

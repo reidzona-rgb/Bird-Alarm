@@ -1,0 +1,11 @@
+{
+  "name": "Zebra Finch",
+  "scientific_name": "Taeniopygia guttata",
+  "region": "australia",
+  "harmonic_score": 5,
+  "facts": [
+    "Song is a series of beeps and buzzes; males learn songs from their fathers.",
+    "Inhabits arid and semi-arid scrub and grassland across Australia.",
+    "One of the most studied birds in science; a model species for vocal learning research."
+  ]
+}

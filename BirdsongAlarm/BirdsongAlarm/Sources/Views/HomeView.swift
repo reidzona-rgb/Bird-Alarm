@@ -111,8 +111,33 @@ struct HomeView: View {
     }
 }
 
-/// The Chorus Deck: all 20 slots and whether each has its files.
+/// Chorus Deck with two sub-tabs: bird list and region selector.
 struct DeckView: View {
+    @EnvironmentObject private var store: AlarmStore
+    @State private var tab = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $tab) {
+                Text("Birds").tag(0)
+                Text("Regions").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            if tab == 0 {
+                BirdListView()
+            } else {
+                RegionSelectView()
+            }
+        }
+        .navigationTitle("Chorus Deck")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct BirdListView: View {
     @EnvironmentObject private var store: AlarmStore
 
     var body: some View {
@@ -123,15 +148,36 @@ struct DeckView: View {
                     if let latin = bird.scientificName {
                         Text(latin).font(.caption.italic()).foregroundColor(.secondary)
                     }
+                    Text(regionLabel(bird.region))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
                 Spacer()
+                // Harmonic score dots
+                HStack(spacing: 2) {
+                    ForEach(0..<5) { i in
+                        Circle()
+                            .frame(width: 5, height: 5)
+                            .foregroundColor(bird.harmonicScore >= (i * 2 + 2) ? .dawnYellow : Color.white.opacity(0.15))
+                    }
+                }
+                .padding(.trailing, 6)
                 Image(systemName: bird.audioURL != nil ? "waveform" : "speaker.slash")
                     .foregroundColor(bird.audioURL != nil ? .dawnYellow : .secondary)
                 Image(systemName: "photo")
                     .foregroundColor(bird.imageURL != nil ? .dawnYellow : .secondary)
             }
         }
-        .navigationTitle("Chorus Deck (\(store.library.birds.count))")
-        .navigationBarTitleDisplayMode(.inline)
+        .listStyle(.plain)
+        .overlay(alignment: .bottom) {
+            Text("\(store.library.birds.count) birds · \(store.library.playable.count) with audio")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .padding(.bottom, 6)
+        }
+    }
+
+    private func regionLabel(_ id: String) -> String {
+        allRegions.first { $0.id == id }?.label ?? id
     }
 }

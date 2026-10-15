@@ -1,0 +1,11 @@
+{
+  "name": "Skylark",
+  "scientific_name": "Alauda arvensis",
+  "region": "western_europe",
+  "harmonic_score": 9,
+  "facts": [
+    "Same as Eurasian Skylark — included once for Western Europe.",
+    "Open farmland — counted in western_europe already as Eurasian Skylark.",
+    "Skip — this is a duplicate. Use Woodlark instead."
+  ]
+}

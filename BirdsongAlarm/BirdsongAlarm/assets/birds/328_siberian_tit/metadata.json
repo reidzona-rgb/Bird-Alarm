@@ -1,0 +1,11 @@
+{
+  "name": "Siberian Tit",
+  "scientific_name": "Poecile cinctus",
+  "region": "eastern_europe",
+  "harmonic_score": 5,
+  "facts": [
+    "Song is a slow, repetitive series of notes — deliberate and far-carrying.",
+    "Inhabits boreal spruce and pine forest across northern Russia and Scandinavia.",
+    "Can survive temperatures below -40°C by caching insects under bark in autumn."
+  ]
+}
